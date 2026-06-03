@@ -12,7 +12,7 @@ export default function AdminDashboard() {
   const { data: kpis } = useQuery({
     queryKey: ['kpis', locId],
     queryFn: () => reportService.getDashboardKPIs({ location_id: locId }).then(r => r.data),
-    refetchInterval: 60000
+    refetchInterval: 30000
   });
 
   const { data: salesData } = useQuery({
@@ -22,19 +22,22 @@ export default function AdminDashboard() {
       date_from: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
       date_to: new Date().toISOString().slice(0, 10),
       group_by: 'day'
-    }).then(r => r.data.data)
+    }).then(r => r.data.data),
+    refetchInterval: 30000
   });
 
   const { data: topItems = [] } = useQuery({
     queryKey: ['top-items', locId],
     queryFn: () => reportService.getTopItems({ location_id: locId, limit: 6,
       date_from: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-    }).then(r => r.data)
+    }).then(r => r.data),
+    refetchInterval: 30000
   });
 
   const { data: paymentTrends = [] } = useQuery({
     queryKey: ['payment-trends', locId],
-    queryFn: () => reportService.getPaymentTrends({ location_id: locId }).then(r => r.data)
+    queryFn: () => reportService.getPaymentTrends({ location_id: locId }).then(r => r.data),
+    refetchInterval: 30000
   });
 
   const kpiCards = [

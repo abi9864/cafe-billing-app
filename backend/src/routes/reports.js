@@ -132,7 +132,7 @@ router.get('/dashboard-kpis', authenticate, asyncHandler(async (req, res) => {
     query(`SELECT COUNT(*) as count FROM inventory_items
            WHERE location_id = $1 AND reorder_level IS NOT NULL AND quantity_on_hand <= reorder_level`, [locId]),
     query(`SELECT COUNT(*) as count FROM orders
-           WHERE location_id = $1 AND status IN ('pending', 'confirmed', 'preparing')`, [locId]),
+           WHERE location_id = $1 AND status IN ('pending', 'confirmed', 'preparing', 'ready')`, [locId]),
     query(`SELECT mi.name, SUM(oi.quantity) as qty
            FROM order_items oi JOIN orders o ON oi.order_id = o.id
            JOIN menu_items mi ON oi.menu_item_id = mi.id

@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   Plus, Minus, Trash2, ShoppingBag, Search, Tag, ChevronRight,
-  Printer, X, CreditCard, Banknote, Smartphone, Leaf
+  X, Leaf
 } from 'lucide-react';
-import { menuService, orderService, paymentService, settingsService, discountService } from '../services';
+import { menuService, orderService, settingsService, discountService } from '../services';
 import { addItem, removeItem, updateQuantity, setOrderType, setTableNumber,
          setCustomerInfo, setDiscount, clearCart } from '../store/slices/cartSlice';
 import { calculateTotals, formatCurrency } from '../utils/calculations';
-import ReceiptModal from '../components/POS/ReceiptModal';
 
 export default function POSPage() {
   const dispatch = useDispatch();
@@ -20,9 +19,6 @@ export default function POSPage() {
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showPayment, setShowPayment] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [completedOrder, setCompletedOrder] = useState(null);
   const [discountCode, setDiscountCode] = useState('');
 
   const locationId = user?.locationId;
@@ -73,38 +69,26 @@ export default function POSPage() {
   };
 
   const placeOrderMutation = useMutation({
-    mutationFn: (paymentData) => {
-      const orderData = {
-        location_id: locationId,
-        order_type: cart.orderType,
-        table_number: cart.tableNumber || null,
-        customer_name: cart.customerName || null,
-        customer_phone: cart.customerPhone || null,
-        notes: cart.notes || null,
-        discount_id: cart.discountId,
-        items: cart.items.map(i => ({
-          menu_item_id: i.id,
-          variant_id: i.variantId,
-          quantity: i.quantity,
-          special_instructions: i.specialInstructions || null,
-          item_discount: 0
-        }))
-      };
-      return orderService.createOrder(orderData).then(async (orderRes) => {
-        await paymentService.processPayment({
-          order_id: orderRes.data.id,
-          payments: paymentData
-        });
-        return orderRes.data;
-      });
-    },
+    mutationFn: () => orderService.createOrder({
+      location_id: locationId,
+      order_type: cart.orderType,
+      table_number: cart.tableNumber || null,
+      customer_name: cart.customerName || null,
+      customer_phone: cart.customerPhone || null,
+      notes: cart.notes || null,
+      discount_id: cart.discountId,
+      items: cart.items.map(i => ({
+        menu_item_id: i.id,
+        variant_id: i.variantId,
+        quantity: i.quantity,
+        special_instructions: i.specialInstructions || null,
+        item_discount: 0
+      }))
+    }).then(r => r.data),
     onSuccess: (order) => {
-      setCompletedOrder(order);
-      setShowPayment(false);
-      setShowReceipt(true);
       dispatch(clearCart());
-      qc.invalidateQueries(['orders']);
-      toast.success('Order placed successfully!');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      toast.success(`Order ${order.order_number} placed — collect payment at counter`);
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Order failed')
   });
@@ -287,37 +271,19 @@ export default function POSPage() {
           </div>
         )}
 
-        {/* Checkout Button */}
+        {/* Place Order Button */}
         <div className="px-4 py-3">
           <button
-            onClick={() => setShowPayment(true)}
-            disabled={cart.items.length === 0}
+            onClick={() => placeOrderMutation.mutate()}
+            disabled={cart.items.length === 0 || placeOrderMutation.isPending}
             className="btn-primary w-full btn-lg"
           >
-            <CreditCard className="w-5 h-5" />
-            Pay {formatCurrency(totals.total)}
+            <ShoppingBag className="w-5 h-5" />
+            {placeOrderMutation.isPending ? 'Placing...' : `Place Order · ${formatCurrency(totals.total)}`}
             <ChevronRight className="w-4 h-4 ml-auto" />
           </button>
         </div>
       </div>
-
-      {/* Payment Modal */}
-      {showPayment && (
-        <PaymentModal
-          total={totals.total}
-          onClose={() => setShowPayment(false)}
-          onConfirm={(paymentData) => placeOrderMutation.mutate(paymentData)}
-          loading={placeOrderMutation.isPending}
-        />
-      )}
-
-      {/* Receipt Modal */}
-      {showReceipt && completedOrder && (
-        <ReceiptModal
-          order={completedOrder}
-          onClose={() => { setShowReceipt(false); setCompletedOrder(null); }}
-        />
-      )}
     </div>
   );
 }
@@ -414,97 +380,6 @@ function CartItem({ item, dispatch }) {
         >
           <Trash2 className="w-3 h-3 text-red-500" />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function PaymentModal({ total, onClose, onConfirm, loading }) {
-  const [method, setMethod] = useState('cash');
-  const [cash, setCash] = useState('');
-  const [payments, setPayments] = useState([{ method: 'cash', amount: total.toFixed(2) }]);
-
-  const methods = [
-    { id: 'cash', label: 'Cash', icon: Banknote },
-    { id: 'card', label: 'Card', icon: CreditCard },
-    { id: 'mobile', label: 'Mobile', icon: Smartphone }
-  ];
-
-  const handleConfirm = () => {
-    const pList = method === 'cash'
-      ? [{ method: 'cash', amount: parseFloat(cash) || total }]
-      : [{ method, amount: total }];
-    onConfirm(pList);
-  };
-
-  const change = method === 'cash' ? Math.max(0, parseFloat(cash || 0) - total) : 0;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-bold text-xl text-gray-900">Payment</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-500" /></button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div className="text-center py-3 bg-primary-50 rounded-xl">
-            <p className="text-sm text-gray-600">Amount Due</p>
-            <p className="text-4xl font-bold text-primary-700">{formatCurrency(total)}</p>
-          </div>
-
-          <div>
-            <p className="label">Payment Method</p>
-            <div className="grid grid-cols-3 gap-2">
-              {methods.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors ${
-                    method === m.id
-                      ? 'border-primary-600 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  <m.icon className="w-5 h-5" />
-                  <span className="text-xs font-medium">{m.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {method === 'cash' && (
-            <div>
-              <label className="label">Cash Tendered</label>
-              <input
-                type="number"
-                className="input text-lg font-semibold"
-                placeholder={total.toFixed(2)}
-                value={cash}
-                onChange={e => setCash(e.target.value)}
-                min={total}
-                step="1"
-                autoFocus
-              />
-              {change > 0 && (
-                <p className="mt-2 text-sm font-semibold text-green-700 bg-green-50 rounded-lg px-3 py-2">
-                  Change: {formatCurrency(change)}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="p-5 pt-0 flex gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-          <button
-            onClick={handleConfirm}
-            disabled={loading || (method === 'cash' && parseFloat(cash || 0) < total)}
-            className="btn-success flex-1 btn-lg"
-          >
-            {loading ? 'Processing...' : 'Confirm Payment'}
-          </button>
-        </div>
       </div>
     </div>
   );

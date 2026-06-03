@@ -1,78 +1,93 @@
-# Cafe Billing App - POS System
+# Raja's Cafe Billing App
 
-A comprehensive Point of Sale (POS) and billing management system for cafes with multi-location support, offline functionality, and an intuitive user interface.
+Raja's Cafe Billing App is a full-stack, multi-location Point-of-Sale and business management system designed for cafes and restaurants. It handles the complete order-to-payment lifecycle, inventory tracking, staff management, loyalty programs, and business analytics — all from a single web interface.
+
+> **Status:** Fully operational. Backend API on port 5000 · React frontend on port 3000 · PostgreSQL initialized with Raja's Cafe demo data.
+
+## Key Features
+
+### 🛒 Point of Sale
+- Fast menu browsing with category filters
+- Cart management with variants
+- Dine-in / Takeaway / Delivery order types
+- Promo code discounts
+- Multi-method payments (Cash / Card / Mobile)
+- Change calculation for cash
+- Printable receipts
+
+### 📦 Operations
+- Live order status tracking (Pending → Confirmed → Preparing → Ready → Completed)
+- Collect payment from Orders page for dine-in workflows
+- Inventory management with reorder alerts
+- Shift open/close management
+- Supplier management
+- Loyalty points program
+- Audit logging
+
+### 📊 Analytics
+- Real-time dashboard KPIs (revenue, active orders, low stock)
+- Revenue charts (daily / weekly / monthly)
+- Top-selling item reports
+- Payment method breakdown
+- Tax / GST reports
+
+### 🏢 Administration
+- Multi-location (branch) support
+- 5-tier role-based access control (Admin, Manager, Cashier, Chef, Staff)
+- User account management
+- Menu & category CRUD with images
+- Tax rates and discount configuration
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js v16+
-- Docker & Docker Compose
+- Node.js v18+
+- PostgreSQL 14+ (local install)
 - Git
 
-### Setup Instructions
+### Setup
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/abi9864/cafe-billing-app.git
 cd cafe-billing-app
 
-# 2. Start PostgreSQL
-git pull origin main
-docker-compose up -d postgres
+# 2. Initialize database (PostgreSQL must be running)
+psql -U postgres -c "CREATE DATABASE cafe_billing;"
+psql -U postgres -d cafe_billing -f database/schema.sql
+psql -U postgres -d cafe_billing -f database/seeds.sql
 
-# 3. Initialize database
-docker exec -i cafe_billing_postgres psql -U postgres -d cafe_billing < database/schema.sql
-docker exec -i cafe_billing_postgres psql -U postgres -d cafe_billing < database/seeds.sql
-
-# 4. Start Backend (Terminal 1)
+# 3. Start Backend (Terminal 1)
 cd backend
 npm install
-cp .env.example .env.local
-npm run dev
+cp .env.example .env.local   # set DB_PASSWORD in .env.local
+npm run dev                   # runs on http://localhost:5000
 
-# 5. Start Frontend (Terminal 2)
+# 4. Start Frontend (Terminal 2)
 cd frontend
 npm install
-cp .env.example .env.local
-npm start
+npm run dev                   # runs on http://localhost:3000
 ```
 
-### Access Application
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/health
+### Access
+| URL | Purpose |
+|-----|---------|
+| http://localhost:3000 | Frontend (React app) |
+| http://localhost:5000 | Backend API |
+| http://localhost:5000/health | API health check |
 
 ## 📊 Tech Stack
 
-- **Frontend**: React 18, Redux Toolkit, Tailwind CSS
-- **Backend**: Node.js, Express, PostgreSQL
-- **Database**: PostgreSQL 14
-- **Development**: Docker, npm
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, Redux Toolkit, TanStack Query v5, Tailwind CSS, Recharts |
+| Backend | Node.js, Express 4, JWT, bcryptjs, Helmet, express-rate-limit |
+| Database | PostgreSQL 14+, node-postgres (pg) |
+| Tooling | nodemon, ESLint, date-fns, Lucide React |
 
-## 📚 Documentation
+## 📝 Demo Users
 
-- [Backend Setup](./backend/README.md)
-- [Frontend Setup](./frontend/README.md)
-- [Database Guide](./database/README.md)
-- [Development Guide](./DEVELOPMENT.md)
-
-## 🎯 Features
-
-- ✅ Point of Sale (POS) System
-- ✅ Menu Management
-- ✅ Multi-location Support
-- ✅ Order Management
-- ✅ Payment Processing
-- ✅ Inventory Tracking
-- ✅ Tax Calculations
-- ✅ Discounts & Promotions
-- ✅ Offline Mode
-- ✅ Receipt Printing
-- ✅ Reporting & Analytics
-
-## 📝 Default Test Users
-
-All users have password: `password`
+All users have password: `password123`
 
 | Email | Role |
 |-------|------|
@@ -80,6 +95,10 @@ All users have password: `password`
 | manager1@cafe.com | Manager |
 | cashier1@cafe.com | Cashier |
 | chef1@cafe.com | Chef |
+
+## 📚 Documentation
+
+Full project setup guide and user manual: [`docs/project-manual.html`](./docs/project-manual.html)
 
 ## 📜 License
 

@@ -197,7 +197,7 @@ router.patch('/:id/status', authenticate, asyncHandler(async (req, res) => {
   const result = await query(
     `UPDATE orders SET status = $1, updated_at = NOW(),
      ${status === 'completed' ? 'completed_at = NOW(),' : ''}
-     notes = CASE WHEN $2 IS NOT NULL THEN COALESCE(notes, '') || ' [VOID: ' || $2 || ']' ELSE notes END
+     notes = CASE WHEN $2::text IS NOT NULL THEN COALESCE(notes, '') || ' [VOID: ' || $2::text || ']' ELSE notes END
      WHERE id = $3 RETURNING *`,
     [status, void_reason || null, req.params.id]
   );

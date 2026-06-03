@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { RefreshCw, Search, Eye, CheckCircle2, XCircle, ChefHat, Clock, IndianRupee, Banknote, CreditCard, Smartphone } from 'lucide-react';
 import { orderService, paymentService } from '../services';
 import { formatCurrency } from '../utils/calculations';
+import ReceiptModal from '../components/POS/ReceiptModal';
 
 const STATUS_COLORS = {
   pending: 'badge-yellow',
@@ -40,6 +41,7 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [paymentOrder, setPaymentOrder] = useState(null);
+  const [receiptOrder, setReceiptOrder] = useState(null);
 
   const { data: orders = [], isFetching, refetch } = useQuery({
     queryKey: ['orders', user?.locationId, statusFilter],
@@ -59,6 +61,7 @@ export default function OrdersPage() {
       qc.invalidateQueries({ queryKey: ['sales-week'] });
       qc.invalidateQueries({ queryKey: ['top-items'] });
       qc.invalidateQueries({ queryKey: ['payment-trends'] });
+      setReceiptOrder(paymentOrder);
       setPaymentOrder(null);
       toast.success('Payment recorded successfully');
     },
@@ -245,6 +248,13 @@ export default function OrdersPage() {
           onClose={() => setPaymentOrder(null)}
           onConfirm={(payments) => paymentMutation.mutate({ orderId: paymentOrder.id, payments })}
           loading={paymentMutation.isPending}
+        />
+      )}
+
+      {receiptOrder && (
+        <ReceiptModal
+          order={receiptOrder}
+          onClose={() => setReceiptOrder(null)}
         />
       )}
     </div>

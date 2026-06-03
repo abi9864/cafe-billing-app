@@ -161,7 +161,7 @@ router.get('/payment-trends', authenticate, authorize('admin', 'manager'), async
 
   const result = await query(
     `SELECT payment_method, COUNT(*) as count, SUM(total_amount) as total
-     FROM orders WHERE location_id = $1 AND status = 'completed' ${dateFilter}
+     FROM orders o WHERE o.location_id = $1 AND o.status = 'completed' ${dateFilter}
      GROUP BY payment_method`,
     params
   );

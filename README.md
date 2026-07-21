@@ -1,4 +1,4 @@
-# Raja's Cafe Billing App
+# Cafe Billing App
 
 Raja's Cafe Billing App is a full-stack, multi-location Point-of-Sale and business management system designed for cafes and restaurants. It handles the complete order-to-payment lifecycle, inventory tracking, staff management, loyalty programs, and business analytics — all from a single web interface.
 

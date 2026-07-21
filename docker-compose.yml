@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: cafe_billing_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cafe_billing
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cafe_network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cafe_billing_backend
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cafe_billing
+      DB_USER: postgres
+      DB_PASSWORD: password
+      JWT_SECRET: change_this_in_production_use_a_long_random_string
+      JWT_EXPIRES_IN: 24h
+      CORS_ORIGIN: http://localhost:3000
+      RAZORPAY_KEY_ID: rzp_test_TFeRvtLHXE5ULp
+      RAZORPAY_KEY_SECRET: tN4SVIrI4yDXQvTPLE5VyjmB
+      SMTP_HOST: smtp.ethereal.email
+      SMTP_PORT: 587
+      SMTP_USER: zmp3hcqftrnbkj34@ethereal.email
+      SMTP_PASS: MxxGuHSgBa45Uth2vS
+      SMTP_FROM: zmp3hcqftrnbkj34@ethereal.email
+      ALERT_EMAIL_TO: zmp3hcqftrnbkj34@ethereal.email
+    ports:
+      - "5000:5000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cafe_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cafe_billing_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cafe_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  cafe_network:
+    driver: bridge

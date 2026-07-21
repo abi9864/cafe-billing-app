@@ -2,8 +2,13 @@ import axios from 'axios';
 import { store } from '../store';
 import { logout } from '../store/slices/authSlice';
 
+// Local dev (docker-compose): nginx proxies /api/ to the backend container
+// on the shared network, so a relative path works.
+// Cloud Run: frontend and backend are separate services with their own
+// URLs, no shared network — VITE_API_URL is baked in at build time via
+// `docker build --build-arg VITE_API_URL=https://<backend-url>/api`.
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 15000
 });
 

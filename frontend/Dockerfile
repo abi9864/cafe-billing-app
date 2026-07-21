@@ -3,6 +3,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+
+# Baked in at build time — Vite embeds import.meta.env.VITE_API_URL into the
+# compiled JS, so this must be passed as --build-arg at `docker build` time,
+# not set later as a runtime env var (that would have no effect on a
+# pre-built static bundle).
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 FROM nginx:alpine

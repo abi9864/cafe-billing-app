@@ -5,14 +5,17 @@ const path = require('path');
 const { query } = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler, notFound } = require('../middleware/errorHandler');
+const { useGCS, saveUploadedImage } = require('../utils/imageStorage');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/menu/'),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `item_${Date.now()}${ext}`);
-  }
-});
+const storage = useGCS
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, 'uploads/menu/'),
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `item_${Date.now()}${ext}`);
+      }
+    });
 const upload = multer({
   storage,
   limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5242880 },
@@ -23,7 +26,6 @@ const upload = multer({
 });
 
 // ---- CATEGORIES ----
-// GET /api/menu/categories
 router.get('/categories', authenticate, asyncHandler(async (req, res) => {
   const { location_id } = req.query;
   const locId = location_id || req.user.location_id;
@@ -34,7 +36,6 @@ router.get('/categories', authenticate, asyncHandler(async (req, res) => {
   res.json(result.rows);
 }));
 
-// POST /api/menu/categories
 router.post('/categories', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   const { name, description, display_order, location_id } = req.body;
   const locId = location_id || req.user.location_id;
@@ -46,7 +47,6 @@ router.post('/categories', authenticate, authorize('admin', 'manager'), asyncHan
   res.status(201).json(result.rows[0]);
 }));
 
-// PUT /api/menu/categories/:id
 router.put('/categories/:id', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   const { name, description, display_order, is_active } = req.body;
   const result = await query(
@@ -61,14 +61,12 @@ router.put('/categories/:id', authenticate, authorize('admin', 'manager'), async
   res.json(result.rows[0]);
 }));
 
-// DELETE /api/menu/categories/:id
 router.delete('/categories/:id', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   await query('UPDATE menu_categories SET is_active = false WHERE id = $1', [req.params.id]);
   res.json({ message: 'Category deactivated' });
 }));
 
 // ---- MENU ITEMS ----
-// GET /api/menu/items
 router.get('/items', authenticate, asyncHandler(async (req, res) => {
   const { location_id, category_id, is_active, search } = req.query;
   const locId = location_id || req.user.location_id;
@@ -89,7 +87,6 @@ router.get('/items', authenticate, asyncHandler(async (req, res) => {
   res.json(result.rows);
 }));
 
-// GET /api/menu/items/:id
 router.get('/items/:id', authenticate, asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT mi.*, mc.name as category_name,
@@ -105,14 +102,13 @@ router.get('/items/:id', authenticate, asyncHandler(async (req, res) => {
   res.json(result.rows[0]);
 }));
 
-// POST /api/menu/items
 router.post('/items', authenticate, authorize('admin', 'manager'),
   upload.single('image'),
   asyncHandler(async (req, res) => {
     const { location_id, category_id, name, description, base_price,
             is_vegetarian, preparation_time, display_order } = req.body;
     const locId = location_id || req.user.location_id;
-    const image_url = req.file ? `/uploads/menu/${req.file.filename}` : null;
+    const image_url = await saveUploadedImage(req.file, 'menu');
 
     const result = await query(
       `INSERT INTO menu_items (location_id, category_id, name, description, base_price,
@@ -125,13 +121,12 @@ router.post('/items', authenticate, authorize('admin', 'manager'),
   })
 );
 
-// PUT /api/menu/items/:id
 router.put('/items/:id', authenticate, authorize('admin', 'manager'),
   upload.single('image'),
   asyncHandler(async (req, res) => {
     const { category_id, name, description, base_price,
             is_vegetarian, preparation_time, display_order, is_active } = req.body;
-    const image_url = req.file ? `/uploads/menu/${req.file.filename}` : undefined;
+    const image_url = req.file ? await saveUploadedImage(req.file, 'menu') : undefined;
 
     let sql = `UPDATE menu_items SET
       category_id = COALESCE($1, category_id),
@@ -162,14 +157,12 @@ router.put('/items/:id', authenticate, authorize('admin', 'manager'),
   })
 );
 
-// DELETE /api/menu/items/:id
 router.delete('/items/:id', authenticate, authorize('admin'), asyncHandler(async (req, res) => {
   await query('UPDATE menu_items SET is_active = false WHERE id = $1', [req.params.id]);
   res.json({ message: 'Menu item deactivated' });
 }));
 
 // ---- VARIANTS ----
-// POST /api/menu/items/:id/variants
 router.post('/items/:id/variants', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   const { name, price_modifier } = req.body;
   const result = await query(
@@ -179,7 +172,6 @@ router.post('/items/:id/variants', authenticate, authorize('admin', 'manager'), 
   res.status(201).json(result.rows[0]);
 }));
 
-// PUT /api/menu/variants/:id
 router.put('/variants/:id', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   const { name, price_modifier } = req.body;
   const result = await query(
@@ -191,15 +183,11 @@ router.put('/variants/:id', authenticate, authorize('admin', 'manager'), asyncHa
   res.json(result.rows[0]);
 }));
 
-// DELETE /api/menu/variants/:id
 router.delete('/variants/:id', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   await query('DELETE FROM menu_variants WHERE id = $1', [req.params.id]);
   res.json({ message: 'Variant deleted' });
 }));
 
-// GET /api/menu/items/:id/recipe
-// Lists the inventory ingredients (and how much of each) one unit of this
-// menu item consumes — used to auto-deduct stock when an order completes.
 router.get('/items/:id/recipe', authenticate, asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT ri.*, ii.item_name, ii.unit_of_measure, ii.quantity_on_hand
@@ -212,8 +200,6 @@ router.get('/items/:id/recipe', authenticate, asyncHandler(async (req, res) => {
   res.json(result.rows);
 }));
 
-// POST /api/menu/items/:id/recipe
-// Adds (or updates, if the ingredient is already linked) one ingredient line.
 router.post('/items/:id/recipe', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   const { inventory_item_id, quantity_per_unit } = req.body;
   if (!inventory_item_id || !quantity_per_unit || parseFloat(quantity_per_unit) <= 0) {
@@ -230,7 +216,6 @@ router.post('/items/:id/recipe', authenticate, authorize('admin', 'manager'), as
   res.status(201).json(result.rows[0]);
 }));
 
-// DELETE /api/menu/items/:itemId/recipe/:recipeItemId
 router.delete('/items/:itemId/recipe/:recipeItemId', authenticate, authorize('admin', 'manager'), asyncHandler(async (req, res) => {
   await query('DELETE FROM recipe_items WHERE id = $1 AND menu_item_id = $2', [req.params.recipeItemId, req.params.itemId]);
   res.json({ message: 'Ingredient removed from recipe' });

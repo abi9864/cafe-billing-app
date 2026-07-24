@@ -5,8 +5,8 @@ on:
     branches: [dev]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
+  PROJECT_ID: pysellers
+  REGION: asia-south1
   AR_REPO: cafe-billing
   DB_INSTANCE: cafe-billing-db
   DB_NAME: cafe_billing
